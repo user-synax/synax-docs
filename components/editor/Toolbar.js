@@ -301,11 +301,6 @@ export default function Toolbar({ editor }) {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() =>
-                                editor.chain().focus().toggleCode().run()
-                            }
-                            isActive={editor.isActive("code")}
-                            tooltip="Code"
                             className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
                         >
                             <Baseline className="w-4 h-4" />
