@@ -1,28 +1,18 @@
 import { auth } from '@clerk/nextjs/server';
 import connectDB from '@/lib/db/connect';
 import Document from '@/models/Document';
+import { checkDocumentAccess } from '@/lib/auth/documentAccess';
 
 export async function GET(req, { params }) {
   try {
     const { userId } = await auth();
     const { id } = await params;
 
-    if (!userId) {
-      return new Response('Unauthorized', { status: 401 });
-    }
-
-    await connectDB();
-
-    const document = await Document.findOne({
-      _id: id,
-      $or: [
-        { ownerId: userId },
-        { 'collaborators.userId': userId }
-      ]
-    }).lean();
-
-    if (!document) {
-      return new Response('Not Found', { status: 404 });
+    const { allowed, document, status, message } = await checkDocumentAccess(id, userId, 'viewer');
+    
+    if (!allowed) {
+      if (!userId) return new Response('Unauthorized', { status: 401 });
+      return new Response(message || 'Forbidden', { status: status || 403 });
     }
 
     return Response.json(document);
@@ -38,28 +28,24 @@ export async function PATCH(req, { params }) {
     const { id } = await params;
     const body = await req.json();
 
-    if (!userId) {
-      return new Response('Unauthorized', { status: 401 });
+    const { allowed, document, status, message } = await checkDocumentAccess(id, userId, 'editor');
+    
+    if (!allowed) {
+      if (!userId) return new Response('Unauthorized', { status: 401 });
+      return new Response(message || 'Forbidden', { status: status || 403 });
     }
 
     await connectDB();
 
     const update = { ...body, lastEditedAt: new Date() };
     
-    const document = await Document.findOneAndUpdate(
-      {
-        _id: id,
-        ownerId: userId // Only owner can patch for now (or editors if we check roles)
-      },
+    const updatedDocument = await Document.findByIdAndUpdate(
+      id,
       { $set: update },
       { new: true }
     );
 
-    if (!document) {
-      return new Response('Not Found', { status: 404 });
-    }
-
-    return Response.json(document);
+    return Response.json(updatedDocument);
   } catch (error) {
     console.error('PATCH_DOCUMENT_ERROR', error);
     return new Response('Internal Server Error', { status: 500 });
@@ -79,26 +65,20 @@ export async function DELETE(req, { params }) {
 
     await connectDB();
 
+    // Only owner can delete
+    const document = await Document.findById(id);
+    if (!document) {
+      return new Response('Not Found', { status: 404 });
+    }
+
+    if (document.ownerId !== userId) {
+      return new Response('Forbidden', { status: 403 });
+    }
+
     if (permanent) {
-      const result = await Document.deleteOne({
-        _id: id,
-        ownerId: userId
-      });
-      if (result.deletedCount === 0) {
-        return new Response('Not Found', { status: 404 });
-      }
+      await Document.deleteOne({ _id: id });
     } else {
-      const document = await Document.findOneAndUpdate(
-        {
-          _id: id,
-          ownerId: userId
-        },
-        { $set: { deletedAt: new Date() } },
-        { new: true }
-      );
-      if (!document) {
-        return new Response('Not Found', { status: 404 });
-      }
+      await Document.findByIdAndUpdate(id, { $set: { deletedAt: new Date() } });
     }
 
     return new Response(null, { status: 204 });
