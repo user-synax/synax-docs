@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import connectDB from '@/lib/db/connect';
 import Document from '@/models/Document';
+import crypto from 'crypto';
 
 export async function GET(req) {
   try {
@@ -51,6 +52,7 @@ export async function POST(req) {
 
     const document = await Document.create({
       ownerId: userId,
+      shareToken: crypto.randomBytes(16).toString('hex'),
     });
 
     return Response.json({ id: document._id });
