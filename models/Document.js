@@ -17,9 +17,14 @@ const DocumentSchema = new mongoose.Schema({
     collaborators: [
         {
             userId: String,
+            email: String,
             role: {
                 type: String,
                 enum: ["viewer", "editor"],
+            },
+            addedAt: {
+                type: Date,
+                default: Date.now,
             },
         },
     ],
@@ -27,6 +32,12 @@ const DocumentSchema = new mongoose.Schema({
         type: String,
         enum: ["private", "public-view", "public-edit"],
         default: "private",
+    },
+    shareToken: {
+        type: String,
+        unique: true,
+        sparse: true,
+        index: true,
     },
     isStarred: {
         type: Boolean,
