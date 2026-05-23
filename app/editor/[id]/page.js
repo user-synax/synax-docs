@@ -13,6 +13,7 @@ export default function EditorPage({ params }) {
   const { setDocument } = useEditorStore();
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editor, setEditor] = useState(null);
 
   useEffect(() => {
     const fetchDoc = async () => {
@@ -60,9 +61,13 @@ export default function EditorPage({ params }) {
 
   return (
     <div className="h-screen flex flex-col bg-zinc-950 overflow-hidden">
-      <TopBar />
+      <TopBar editor={editor} />
       <div className="flex-1 flex flex-col pt-[52px]">
-        <EditorCore initialContent={doc?.content} documentId={id} />
+        <EditorCore 
+          initialContent={doc?.content} 
+          documentId={id} 
+          onEditorReady={setEditor}
+        />
       </div>
     </div>
   );
